@@ -131,14 +131,14 @@ if uploaded_file:
     fig = create_polar_chart(data, averages, categories, colors, f"{sheet_name}: Polar Chart")
     st.pyplot(fig)
 
-    # Save figure to a BytesIO object
+    # Save figure to a BytesIO object with high DPI for sharpness
     buf = io.BytesIO()
-    fig.savefig(buf, format="png")  # Save as PNG
+    fig.savefig(buf, format="png", dpi=600)  # Save as PNG with high DPI (600)
     buf.seek(0)  # Move the buffer's position to the beginning
 
     # Create a download button
     st.download_button(
-        label=f"Download Chart as PNG for {sheet_name}",
+        label=f"Download Chart as High-Quality PNG for {sheet_name}",
         data=buf,
         file_name=f"polar_chart_{sheet_name}.png",
         mime="image/png"
@@ -149,5 +149,5 @@ if uploaded_file:
     ### Instructions:
     1. Upload an Excel file containing the data.
     2. Select the appropriate sheet name.
-    3. View and download the resulting polar chart.
+    3. View and download the resulting high-quality polar chart.
     """)
