@@ -5,6 +5,7 @@ Created on Fri Sep 20 15:22:43 2024
 
 @author: bramhendriksz
 """
+pip install matplotlib
 
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
