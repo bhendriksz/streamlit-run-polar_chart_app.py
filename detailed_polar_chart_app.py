@@ -69,7 +69,7 @@ def create_radar_chart(data, categories, title, sheet_name):
 
         # Save the figure as a downloadable high-res PNG
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=300)  # Save as high-res PNG
+        fig.savefig(buf, format="png", dpi=600)  # Save as high-res PNG
         buf.seek(0)  # Move the buffer's position to the beginning
         st.download_button(
             label=f"Download Chart for {category}",
