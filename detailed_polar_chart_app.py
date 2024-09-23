@@ -146,6 +146,5 @@ if uploaded_file:
     ### Instructions:
     1. Upload an Excel file containing the data.
     2. Select the appropriate sheet name.
-    3. View and download the resulting radar chart for each category.
+    3. View and download the resulting radar chart for each category in high quality.
     """)
-
