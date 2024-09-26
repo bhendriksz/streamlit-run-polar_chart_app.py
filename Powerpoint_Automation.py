@@ -4,7 +4,7 @@ import win32com.client as win32
 import os
 
 # Function to add and run the macro in the PowerPoint presentation
-def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height):
+def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diameter):
     pythoncom.CoInitialize()
     
     try:
@@ -18,7 +18,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height):
 
         presentation = ppt_app.Presentations.Open(ppt_path)
 
-        # VBA code to be added to the presentation
+        # VBA code to be added to the presentation with adjustable parameters
         vba_code = f"""
         Sub AddBulletsAndNumberingBasedOnTableLocationsWithHyperlinks()
             Dim sld As Slide
@@ -45,7 +45,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height):
             ReDim bulletCount(1 To rowsCount, 1 To colsCount)
 
             ' Set the diameter of the bullets
-            bolDiameter = 9
+            bolDiameter = {bol_diameter}
 
             ' Refer to the active presentation and add a new slide
             Set sld = ActivePresentation.Slides.Add(ActivePresentation.Slides.Count + 1, ppLayoutBlank)
@@ -69,11 +69,89 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height):
             For j = 1 To colsCount
                 tblShape.Table.Cell(1, j).Shape.TextFrame.TextRange.Font.Color.RGB = RGB(0, 0, 0)
             Next j
+
+            ' Find the slide with the table that contains the 'Afkorting' column and store the text underneath
+            Dim sldWithAfkorting As Slide
+            Dim shpWithAfkortingTable As Shape
+            Dim afkortingTbl As Table
+
+            ' Go through each slide to find the Abbreviation table
+            For Each sldWithAfkorting In ActivePresentation.Slides
+                For Each shpWithAfkortingTable In sldWithAfkorting.Shapes
+                    If shpWithAfkortingTable.HasTable Then
+                        Set afkortingTbl = shpWithAfkortingTable.Table
+                        ' Determine which column is 'AFKORTING' and 'TITEL'
+                        titleColumnIndex = 0  ' Reset the index for safety
+                        For i = 1 To afkortingTbl.Columns.Count
+                            If UCase(afkortingTbl.Cell(1, i).Shape.TextFrame.TextRange.Text) = "AFKORTING" Then
+                                For j = 2 To afkortingTbl.Rows.Count
+                                    abbreviationText = afkortingTbl.Cell(j, i).Shape.TextFrame.TextRange.Text
+                                    For k = 1 To afkortingTbl.Columns.Count
+                                        If UCase(afkortingTbl.Cell(1, k).Shape.TextFrame.TextRange.Text) = "SPF" Then
+                                            location = afkortingTbl.Cell(j, k).Shape.TextFrame.TextRange.Text
+                                            If location <> "" Then
+                                                colLetter = Left(location, 1)
+                                                rowNumber = Val(Mid(location, 2))
+                                                colNumber = Asc(UCase(colLetter)) - Asc("A") + 1
+
+                                                ' Increment the bullet count for this cell
+                                                bulletCount(rowNumber, colNumber) = bulletCount(rowNumber, colNumber) + 1
+
+                                                ' Calculate the position of the bullet based on its index
+                                                Dim bulletIndex As Integer
+                                                bulletIndex = (bulletCount(rowNumber, colNumber) - 1) Mod 5 + 1
+
+                                                Dim colOffset As Single, rowOffset As Single
+                                                colOffset = (bulletIndex - 1) * bolDiameter
+                                                rowOffset = 0 ' All bullets are in the same row, so rowOffset is always 0
+
+                                                xPos = tblShape.Left + (colNumber - 1) * (tblShape.Width / colsCount) + colOffset
+                                                yPos = tblShape.Top + (rowNumber - 1) * (tblShape.Height / rowsCount) + rowOffset
+
+                                                ' Add the bullet shape
+                                                Set bolShape = sld.Shapes.AddShape(msoShapeOval, xPos, yPos, bolDiameter, bolDiameter)
+                                                bolShape.TextFrame.TextRange.Text = abbreviationText
+                                                bolShape.Fill.ForeColor.RGB = RGB(0, 0, 0) ' Black bullet
+                                                bolShape.ActionSettings(ppMouseClick).Action = ppActionHyperlink
+                                                bolShape.ActionSettings(ppMouseClick).Hyperlink.Address = "#" & sldWithAfkorting.SlideIndex
+                                            End If
+                                        ElseIf UCase(afkortingTbl.Cell(1, k).Shape.TextFrame.TextRange.Text) = "TITEL" Then
+                                            titleColumnIndex = k
+                                        End If
+                                    Next k
+                                    If titleColumnIndex > 0 Then
+                                        projectTitle = afkortingTbl.Cell(j, titleColumnIndex).Shape.TextFrame.TextRange.Text
+                                        If Not bolShape Is Nothing Then
+                                            bolShape.ActionSettings(ppMouseClick).Hyperlink.ScreenTip = abbreviationText & " : " & projectTitle
+                                        End If
+                                    End If
+                                Next j
+                                Exit For
+                            End If
+                        Next i
+                        Exit For
+                    End If
+                Next shpWithAfkortingTable
+            Next sldWithAfkorting
+
+            ' Change the border color of every cell in the table to black
+            Dim newTbl As Table
+            Set newTbl = tblShape.Table
+            For i = 1 To newTbl.Rows.Count
+                For j = 1 To newTbl.Columns.Count
+                    With newTbl.Cell(i, j).Borders
+                        .Item(ppBorderTop).ForeColor.RGB = RGB(0, 0, 0)
+                        .Item(ppBorderLeft).ForeColor.RGB = RGB(0, 0, 0)
+                        .Item(ppBorderBottom).ForeColor.RGB = RGB(0, 0, 0)
+                        .Item(ppBorderRight).ForeColor.RGB = RGB(0, 0, 0)
+                    End With
+                Next j
+            Next i
         End Sub
         """
 
         # Add the VBA code to the presentation
-        module = presentation.VBProject.VBComponents.Add(win32.constants.vbext_ct_StdModule)
+        module = presentation.VBProject.VBComponents.Add(1)  # Use 1 for vbext_ct_StdModule
         module.CodeModule.AddFromString(vba_code)
 
         # Run the macro
@@ -109,12 +187,13 @@ if uploaded_ppt is not None:
     # Input fields for variables
     rows = st.number_input("Number of rows", min_value=1, step=1, value=23)
     cols = st.number_input("Number of columns", min_value=1, step=1, value=15)
-    cell_width = st.number_input("Width of the cell (cm)", min_value=0.1, step=0.1, value=1.62)
-    cell_height = st.number_input("Height of the cell (cm)", min_value=0.1, step=0.1, value=0.7)
-    
+    cell_width = st.number_input("Width of each cell (cm)", min_value=0.1, step=0.1, value=1.62)
+    cell_height = st.number_input("Height of each cell (cm)", min_value=0.1, step=0.1, value=0.7)
+    bol_diameter = st.number_input("Diameter of the bullet (points)", min_value=1.0, step=0.5, value=9.0)
+
     if st.button("Run Macro"):
         # Add and run the macro with the provided parameters
-        output_ppt_path = add_and_run_macro("uploaded_presentation.pptx", rows, cols, cell_width, cell_height)
+        output_ppt_path = add_and_run_macro("uploaded_presentation.pptx", rows, cols, cell_width, cell_height, bol_diameter)
         
         st.success("Macro executed successfully!")
         
@@ -126,4 +205,5 @@ if uploaded_ppt is not None:
                 file_name="updated_presentation.pptm",
                 mime="application/vnd.ms-powerpoint"
             )
+
 
