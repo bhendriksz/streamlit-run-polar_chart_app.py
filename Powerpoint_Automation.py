@@ -225,4 +225,6 @@ if pywin32_available:
                     )
 else:
     st.warning("This app can only be fully functional on a Windows environment.")
+else:
+    st.warning("This app can only be fully functional on a Windows environment.")
 
