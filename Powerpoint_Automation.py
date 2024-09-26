@@ -1,18 +1,34 @@
 import streamlit as st
-import pythoncom
-import win32com.client as win32
 import os
+import sys
+
+# Check if running on a Windows system
+if sys.platform == "win32":
+    try:
+        import pythoncom
+        import win32com.client as win32
+        pywin32_available = True
+    except ImportError:
+        st.error("Required packages are not installed. Please make sure you have pywin32 installed on your Windows machine.")
+        pywin32_available = False
+else:
+    pywin32_available = False
+    st.warning("PowerPoint automation is only supported on Windows. Please run this script on a Windows machine.")
 
 # Function to add and run the macro in the PowerPoint presentation
 def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diameter):
+    if not pywin32_available:
+        st.error("PowerPoint automation is only supported on Windows.")
+        return None
+
     pythoncom.CoInitialize()
-    
+
     try:
         ppt_app = win32.Dispatch("PowerPoint.Application")
-        ppt_app.Visible = True  # Make sure PowerPoint is visible for debugging purposes
+        ppt_app.Visible = True  # Make PowerPoint visible for debugging
 
         # Open the presentation
-        ppt_path = os.path.abspath(ppt_path)  # Ensure the path is absolute
+        ppt_path = os.path.abspath(ppt_path)
         if not os.path.exists(ppt_path):
             raise FileNotFoundError(f"The PowerPoint file was not found at: {ppt_path}")
 
@@ -174,36 +190,39 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
 # Set up the Streamlit UI
 st.title("PowerPoint Macro Tool")
 
-# Upload PowerPoint file
-uploaded_ppt = st.file_uploader("Upload your PowerPoint presentation", type=["pptx", "pptm"])
+if pywin32_available:
+    # Upload PowerPoint file
+    uploaded_ppt = st.file_uploader("Upload your PowerPoint presentation", type=["pptx", "pptm"])
 
-if uploaded_ppt is not None:
-    # Save the uploaded file temporarily
-    with open("uploaded_presentation.pptx", "wb") as f:
-        f.write(uploaded_ppt.read())
+    if uploaded_ppt is not None:
+        # Save the uploaded file temporarily
+        with open("uploaded_presentation.pptx", "wb") as f:
+            f.write(uploaded_ppt.read())
 
-    st.success("PowerPoint successfully uploaded!")
+        st.success("PowerPoint successfully uploaded!")
 
-    # Input fields for variables
-    rows = st.number_input("Number of rows", min_value=1, step=1, value=23)
-    cols = st.number_input("Number of columns", min_value=1, step=1, value=15)
-    cell_width = st.number_input("Width of each cell (cm)", min_value=0.1, step=0.1, value=1.62)
-    cell_height = st.number_input("Height of each cell (cm)", min_value=0.1, step=0.1, value=0.7)
-    bol_diameter = st.number_input("Diameter of the bullet (points)", min_value=1.0, step=0.5, value=9.0)
+        # Input fields for variables
+        rows = st.number_input("Number of rows", min_value=1, step=1, value=23)
+        cols = st.number_input("Number of columns", min_value=1, step=1, value=15)
+        cell_width = st.number_input("Width of each cell (cm)", min_value=0.1, step=0.1, value=1.62)
+        cell_height = st.number_input("Height of each cell (cm)", min_value=0.1, step=0.1, value=0.7)
+        bol_diameter = st.number_input("Diameter of the bullet (points)", min_value=1.0, step=0.5, value=9.0)
 
-    if st.button("Run Macro"):
-        # Add and run the macro with the provided parameters
-        output_ppt_path = add_and_run_macro("uploaded_presentation.pptx", rows, cols, cell_width, cell_height, bol_diameter)
-        
-        st.success("Macro executed successfully!")
-        
-        # Provide the updated presentation for download
-        with open(output_ppt_path, "rb") as f:
-            st.download_button(
-                label="Download Updated PowerPoint",
-                data=f,
-                file_name="updated_presentation.pptm",
-                mime="application/vnd.ms-powerpoint"
-            )
-
+        if st.button("Run Macro"):
+            # Add and run the macro with the provided parameters
+            output_ppt_path = add_and_run_macro("uploaded_presentation.pptx", rows, cols, cell_width, cell_height, bol_diameter)
+            
+            if output_ppt_path:
+                st.success("Macro executed successfully!")
+                
+                # Provide the updated presentation for download
+                with open(output_ppt_path, "rb") as f:
+                    st.download_button(
+                        label="Download Updated PowerPoint",
+                        data=f,
+                        file_name="updated_presentation.pptm",
+                        mime="application/vnd.ms-powerpoint"
+                    )
+else:
+    st.warning("This app can only be fully functional on a Windows environment.")
 
