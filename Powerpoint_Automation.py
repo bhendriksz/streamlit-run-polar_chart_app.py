@@ -104,6 +104,8 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
             for shp in sld.Shapes:
                 if shp.HasTable:
                     tbl = shp.Table
+                    st.write(f"Table found on slide {sld.SlideIndex} with {tbl.Rows.Count} rows and {tbl.Columns.Count} columns")
+
                     afkorting_col = None
                     spf_col = None
                     title_col = None
@@ -112,6 +114,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
                     # Identify the columns "AFKORTING", "SPF", "TITEL", and "PROJECT / IDEA / TASK"
                     for col in range(1, tbl.Columns.Count + 1):
                         header_text = tbl.Cell(1, col).Shape.TextFrame.TextRange.Text.upper()
+                        st.write(f"Header found: {header_text}")
                         if header_text == "AFKORTING":
                             afkorting_col = col
                         elif header_text == "SPF":
@@ -124,21 +127,27 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
                     # Ensure the table has more than just a header row
                     if afkorting_col and spf_col and type_col and tbl.Rows.Count > 1:
                         # Loop through each row to group projects by department (Afkorting)
+                        st.write(f"Processing table with {tbl.Rows.Count} rows.")
                         for row in range(2, tbl.Rows.Count + 1):
-                            afkorting = tbl.Cell(row, afkorting_col).Shape.TextFrame.TextRange.Text
-                            spf = tbl.Cell(row, spf_col).Shape.TextFrame.TextRange.Text
-                            project_title = tbl.Cell(row, title_col).Shape.TextFrame.TextRange.Text if title_col else ""
-                            project_type = tbl.Cell(row, type_col).Shape.TextFrame.TextRange.Text
+                            try:
+                                afkorting = tbl.Cell(row, afkorting_col).Shape.TextFrame.TextRange.Text
+                                spf = tbl.Cell(row, spf_col).Shape.TextFrame.TextRange.Text
+                                project_title = tbl.Cell(row, title_col).Shape.TextFrame.TextRange.Text if title_col else ""
+                                project_type = tbl.Cell(row, type_col).Shape.TextFrame.TextRange.Text
 
-                            if len(afkorting) >= 2:
-                                department = afkorting[:2]  # First two letters define the department
-                                department_slides[department].append((afkorting, spf, project_title, project_type, sld.SlideIndex))
+                                st.write(f"Row {row}: afkorting={afkorting}, spf={spf}, project_title={project_title}, project_type={project_type}")
 
-                                # Categorize into initiatives/ideas or tasks
-                                if project_type in ['Initiative', 'Idea']:
-                                    department_initiatives_ideas[department].append((afkorting, spf, project_title, project_type, sld.SlideIndex))
-                                elif project_type == 'Task':
-                                    department_tasks[department].append((afkorting, spf, project_title, project_type, sld.SlideIndex))
+                                if len(afkorting) >= 2:
+                                    department = afkorting[:2]  # First two letters define the department
+                                    department_slides[department].append((afkorting, spf, project_title, project_type, sld.SlideIndex))
+
+                                    # Categorize into initiatives/ideas or tasks
+                                    if project_type in ['Initiative', 'Idea']:
+                                        department_initiatives_ideas[department].append((afkorting, spf, project_title, project_type, sld.SlideIndex))
+                                    elif project_type == 'Task':
+                                        department_tasks[department].append((afkorting, spf, project_title, project_type, sld.SlideIndex))
+                            except Exception as e:
+                                st.write(f"Error processing row {row}: {e}")
 
         # Create slide with all projects, using different colors for each department
         new_slide = presentation.Slides.Add(presentation.Slides.Count + 1, 12)  # Blank layout
@@ -181,6 +190,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
         if ppt_app:
             ppt_app.Quit()
         raise e
+
 
 # Streamlit UI setup
 st.title("PowerPoint Macro Tool (Headless)")
