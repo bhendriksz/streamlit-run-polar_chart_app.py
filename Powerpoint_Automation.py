@@ -27,9 +27,16 @@ def assign_department_color(department):
     return department_colors[department]
 
 # Function to add bullets to a slide with grouping by department
-def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width, cell_height, bol_diameter):
+def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt):
     bullet_count = defaultdict(int)
     department_shapes = defaultdict(list)
+
+    # Convert cell width and height from cm to inches
+    cell_width_in = cell_width_cm / 2.54  # 1 inch = 2.54 cm
+    cell_height_in = cell_height_cm / 2.54
+
+    # Convert bullet (boll) diameter from pt to inches
+    bol_diameter_in = bol_diameter_pt / 72.0  # 72 points = 1 inch
 
     # Loop over each project
     for afkorting, spf, project_title, project_type, source_slide_idx in projects:
@@ -43,14 +50,14 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width, 
 
             # Maximum of 5 bullets per row, and 2 rows per cell
             visible_bullet_idx = bullet_idx % 10
-            row_offset = (visible_bullet_idx // 5) * bol_diameter
-            col_offset = (visible_bullet_idx % 5) * bol_diameter
+            row_offset = (visible_bullet_idx // 5) * bol_diameter_in
+            col_offset = (visible_bullet_idx % 5) * bol_diameter_in
 
-            xPos = Inches(1 + (col_number - 1) * cell_width + col_offset)  # Convert cm to inches
-            yPos = Inches(1 + (row_number - 1) * cell_height + row_offset)
+            xPos = Inches(1 + (col_number - 1) * cell_width_in + col_offset)  # Position in inches
+            yPos = Inches(1 + (row_number - 1) * cell_height_in + row_offset)
 
             # Add bullet for the project
-            shape = slide.shapes.add_shape(MSO_SHAPE.OVAL, xPos, yPos, Inches(bol_diameter), Inches(bol_diameter))
+            shape = slide.shapes.add_shape(MSO_SHAPE.OVAL, xPos, yPos, Inches(bol_diameter_in), Inches(bol_diameter_in))
             shape.text = afkorting
 
             # Assign a unique color to the department based on the two-letter code
@@ -63,7 +70,7 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width, 
             text_frame = shape.text_frame
             text_frame.text = afkorting
             text_frame.paragraphs[0].font.name = "Arial"
-            text_frame.paragraphs[0].font.size = Pt(12)
+            text_frame.paragraphs[0].font.size = Pt(12)  # Font size in points
             text_frame.paragraphs[0].font.bold = True
             text_frame.paragraphs[0].font.italic = True
 
@@ -71,7 +78,7 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width, 
             department_shapes[afkorting[:2]].append(shape)
 
 # Function to add and manipulate slides in the PowerPoint presentation
-def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diameter):
+def add_and_run_macro(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt):
     # Load the PowerPoint presentation
     prs = Presentation(ppt_path)
 
@@ -127,7 +134,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
 
     # Add all department projects in one slide
     all_projects = [project for projects in department_slides.values() for project in projects]
-    add_bullets_to_slide_with_grouping(new_slide, all_projects, rows, cols, cell_width, cell_height, bol_diameter)
+    add_bullets_to_slide_with_grouping(new_slide, all_projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt)
 
     # Slide for initiatives and ideas
     new_slide = prs.slides.add_slide(prs.slide_layouts[5])
@@ -135,7 +142,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
     title_shape.text = "Initiatives and Ideas by Department"
 
     all_initiatives_ideas = [idea for ideas in department_initiatives_ideas.values() for idea in ideas]
-    add_bullets_to_slide_with_grouping(new_slide, all_initiatives_ideas, rows, cols, cell_width, cell_height, bol_diameter)
+    add_bullets_to_slide_with_grouping(new_slide, all_initiatives_ideas, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt)
 
     # Slide for tasks
     new_slide = prs.slides.add_slide(prs.slide_layouts[5])
@@ -143,7 +150,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width, cell_height, bol_diamete
     title_shape.text = "Tasks by Department"
 
     all_tasks = [task for tasks in department_tasks.values() for task in tasks]
-    add_bullets_to_slide_with_grouping(new_slide, all_tasks, rows, cols, cell_width, cell_height, bol_diameter)
+    add_bullets_to_slide_with_grouping(new_slide, all_tasks, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt)
 
     # Save the modified presentation
     output_path = os.path.join(os.path.dirname(ppt_path), "updated_presentation_departments.pptx")
@@ -164,12 +171,12 @@ if uploaded_ppt is not None:
 
     rows = st.number_input("Number of rows", min_value=1, step=1, value=23)
     cols = st.number_input("Number of columns", min_value=1, step=1, value=15)
-    cell_width = st.number_input("Width of each cell (inches)", min_value=0.1, step=0.1, value=1.62)
-    cell_height = st.number_input("Height of each cell (inches)", min_value=0.1, step=0.1, value=0.7)
-    bol_diameter = st.number_input("Diameter of the bullet (inches)", min_value=0.1, step=0.1, value=0.25)
+    cell_width_cm = st.number_input("Width of each cell (cm)", min_value=0.1, step=0.1, value=4.1)  # Set input in cm
+    cell_height_cm = st.number_input("Height of each cell (cm)", min_value=0.1, step=0.1, value=1.78)  # Set input in cm
+    bol_diameter_pt = st.number_input("Diameter of the bullet (pt)", min_value=1.0, step=0.5, value=9.0)  # Set input in pt
 
     if st.button("Run Macro"):
-        output_ppt_path = add_and_run_macro("uploaded_presentation.pptx", rows, cols, cell_width, cell_height, bol_diameter)
+        output_ppt_path = add_and_run_macro("uploaded_presentation.pptx", rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt)
         st.success("Macro executed successfully!")
         with open(output_ppt_path, "rb") as f:
             st.download_button("Download Updated PowerPoint", f, "updated_presentation_departments.pptx", "application/vnd.ms-powerpoint")
