@@ -26,8 +26,8 @@ def assign_department_color(department):
         department_colors[department] = hsv_to_rgb(hue, 0.8, 0.9)  # Set saturation and value to fixed levels
     return department_colors[department]
 
-# Function to add bullets to a slide with grouping by department
-def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, presentation):
+# Function to add bullets to a slide
+def add_bullets_to_slide(slide, projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, presentation):
     bullet_count = defaultdict(int)
     department_shapes = defaultdict(list)
 
@@ -78,21 +78,11 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_c
 
             # Add hyperlink to the original slide using the actual slide index
             hyperlink = shape.click_action
-            target_slide = presentation.slides[source_slide_idx]  # Use the actual slide index, no need for '-1'
+            target_slide = presentation.slides[source_slide_idx]  # Use the actual slide index
             hyperlink.target_slide = target_slide
 
             # Add mouse-over screen tip
             hyperlink.tooltip = f"{afkorting}: {project_title}"
-
-            # Collect shapes for grouping by department
-            department_shapes[afkorting[:2]].append(shape)
-
-    # Group all shapes by department
-    for department, shapes in department_shapes.items():
-        if len(shapes) > 1:
-            group = slide.shapes._spTree.add_group_shape()
-            for shape in shapes:
-                group._spTree.insert(0, shape._element)
 
 # Function to process and modify the PowerPoint presentation
 def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt):
@@ -150,21 +140,21 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
         title_shape = new_slide.shapes.title
         title_shape.text = "All Projects by Department"
         all_projects = [project for projects in department_slides.values() for project in projects]
-        add_bullets_to_slide_with_grouping(new_slide, all_projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
+        add_bullets_to_slide(new_slide, all_projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
 
         # Create slide for initiatives and ideas
         new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Add a blank slide layout
         title_shape = new_slide.shapes.title
         title_shape.text = "Initiatives and Ideas by Department"
         all_initiatives_ideas = [idea for ideas in department_initiatives_ideas.values() for idea in ideas]
-        add_bullets_to_slide_with_grouping(new_slide, all_initiatives_ideas, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
+        add_bullets_to_slide(new_slide, all_initiatives_ideas, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
 
         # Create slide for tasks
         new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Add a blank slide layout
         title_shape = new_slide.shapes.title
         title_shape.text = "Tasks by Department"
         all_tasks = [task for tasks in department_tasks.values() for task in tasks]
-        add_bullets_to_slide_with_grouping(new_slide, all_tasks, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
+        add_bullets_to_slide(new_slide, all_tasks, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
 
         # Save the modified presentation
         output_path = os.path.join(os.path.dirname(ppt_path), "updated_presentation_departments.pptx")
@@ -198,4 +188,5 @@ if uploaded_ppt is not None:
         st.success("Presentation processed successfully!")
         with open(output_ppt_path, "rb") as f:
             st.download_button("Download Updated PowerPoint", f, "updated_presentation_departments.pptx", "application/vnd.ms-powerpoint")
+
 
