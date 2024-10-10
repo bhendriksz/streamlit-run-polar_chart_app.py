@@ -5,29 +5,13 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.dml.color import RGBColor
 from collections import defaultdict
 import os
-import colorsys
 
 # Helper function to convert RGB values
 def RGB(r, g, b):
     return RGBColor(r, g, b)
 
-# Function to convert HSV to RGB and return as RGBColor
-def hsv_to_rgb(h, s, v):
-    r, g, b = colorsys.hsv_to_rgb(h, s, v)
-    return RGB(int(r * 255), int(g * 255), int(b * 255))
-
-# Define a mapping from department (two-letter code) to colors
-department_colors = {}
-
-# Function to assign a unique color to each department using HSV color space
-def assign_department_color(department):
-    if department not in department_colors:
-        hue = len(department_colors) / 12.0  # Adjust denominator to control the spread of hues
-        department_colors[department] = hsv_to_rgb(hue, 0.8, 0.9)  # Set saturation and value to fixed levels
-    return department_colors[department]
-
-# Function to add bullets to a slide with grouping by department
-def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt):
+# Function to add bullets to a slide
+def add_bullets_to_slide(slide, projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, presentation):
     bullet_count = defaultdict(int)
     department_shapes = defaultdict(list)
 
@@ -62,11 +46,10 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_c
             shape = slide.shapes.add_shape(MSO_SHAPE.OVAL, xPos, yPos, Inches(bol_diameter_in), Inches(bol_diameter_in))
             shape.text = afkorting
 
-            # Assign a unique color to the department based on the two-letter code
-            department_color = assign_department_color(afkorting[:2])
+            # Assign a color to the bullet
             fill = shape.fill
             fill.solid()
-            fill.fore_color.rgb = department_color
+            fill.fore_color.rgb = RGB(0, 0, 255)
 
             # Set text font style and size
             text_frame = shape.text_frame
@@ -76,8 +59,13 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_c
             text_frame.paragraphs[0].font.bold = True
             text_frame.paragraphs[0].font.italic = True
 
-            # Collect shapes for grouping by department
-            department_shapes[afkorting[:2]].append(shape)
+            # Add hyperlink to the original slide
+            hyperlink = shape.click_action
+            target_slide = presentation.slides[source_slide_idx]  # Use the actual slide index
+            hyperlink.target_slide = target_slide
+
+            # Add mouse-over screen tip
+            hyperlink.tooltip = f"{afkorting}: {project_title}"
 
 # Function to process and modify the PowerPoint presentation
 def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt):
@@ -85,13 +73,13 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
         # Open the PowerPoint file
         prs = Presentation(ppt_path)
 
-        # Initialize a dictionary to store department-wise slides
+        # Initialize dictionaries to store department-wise data
         department_slides = defaultdict(list)
-        department_initiatives_ideas = defaultdict(list)
+        department_projects = defaultdict(list)
         department_tasks = defaultdict(list)
 
         # Loop through all slides and shapes to find tables
-        for slide in prs.slides:
+        for slide_idx, slide in enumerate(prs.slides):
             for shape in slide.shapes:
                 if shape.has_table:
                     tbl = shape.table
@@ -122,21 +110,35 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
 
                             if len(afkorting) >= 2:
                                 department = afkorting[:2]  # First two letters define the department
-                                department_slides[department].append((afkorting, spf, project_title, project_type, slide))
+                                department_slides[department].append((afkorting, spf, project_title, project_type, slide_idx))
 
                                 # Categorize into initiatives/ideas or tasks
                                 if project_type in ['Initiative', 'Idea']:
-                                    department_initiatives_ideas[department].append((afkorting, spf, project_title, project_type, slide))
+                                    department_projects[department].append((afkorting, spf, project_title, project_type, slide_idx))
                                 elif project_type == 'Task':
-                                    department_tasks[department].append((afkorting, spf, project_title, project_type, slide))
+                                    department_tasks[department].append((afkorting, spf, project_title, project_type, slide_idx))
 
         # Create slide with all projects, using different colors for each department
-        new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Add a blank slide layout
-        title_shape = new_slide.shapes.title
-        title_shape.text = "All Projects by Department"
+        for department, projects in department_slides.items():
+            # Create one slide with all projects
+            new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Add a blank slide layout
+            title_shape = new_slide.shapes.title
+            title_shape.text = f"Department: {department} - All Projects"
+            add_bullets_to_slide(new_slide, projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
 
-        all_projects = [project for projects in department_slides.values() for project in projects]
-        add_bullets_to_slide_with_grouping(new_slide, all_projects, rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt)
+            # Create a slide with only Initiatives and Ideas
+            if department_projects[department]:
+                new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Add a blank slide layout
+                title_shape = new_slide.shapes.title
+                title_shape.text = f"Department: {department} - Initiatives and Ideas"
+                add_bullets_to_slide(new_slide, department_projects[department], rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
+
+            # Create a slide with only Tasks
+            if department_tasks[department]:
+                new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Add a blank slide layout
+                title_shape = new_slide.shapes.title
+                title_shape.text = f"Department: {department} - Tasks"
+                add_bullets_to_slide(new_slide, department_tasks[department], rows, cols, cell_width_cm, cell_height_cm, bol_diameter_pt, prs)
 
         # Save the modified presentation
         output_path = os.path.join(os.path.dirname(ppt_path), "updated_presentation_departments.pptx")
@@ -170,4 +172,3 @@ if uploaded_ppt is not None:
         st.success("Presentation processed successfully!")
         with open(output_ppt_path, "rb") as f:
             st.download_button("Download Updated PowerPoint", f, "updated_presentation_departments.pptx", "application/vnd.ms-powerpoint")
-
