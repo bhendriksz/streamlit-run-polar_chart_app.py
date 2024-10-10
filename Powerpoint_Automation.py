@@ -40,20 +40,22 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_c
 
     # Loop over each project
     for afkorting, spf, project_title, project_type, source_slide_idx in projects:
-        col_letter = spf[0]
-        row_number = int(spf[1:])
-        col_number = ord(col_letter.upper()) - ord('A') + 1
+        col_letter = spf[0]  # First letter for column
+        row_number = int(spf[1:])  # Number for the row
+        col_number = ord(col_letter.upper()) - ord('A') + 1  # Convert column letter to index
 
+        # Only place the bullet if it fits within the grid
         if 1 <= row_number <= rows and 1 <= col_number <= cols:
             bullet_count[(row_number, col_number)] += 1
             bullet_idx = bullet_count[(row_number, col_number)] - 1
 
             # Maximum of 5 bullets per row, and 2 rows per cell
-            visible_bullet_idx = bullet_idx % 10
-            row_offset = (visible_bullet_idx // 5) * bol_diameter_in
-            col_offset = (visible_bullet_idx % 5) * bol_diameter_in
+            visible_bullet_idx = bullet_idx % 10  # 0-9 visible bullets
+            row_offset = (visible_bullet_idx // 5) * bol_diameter_in  # Offset for second row of bullets
+            col_offset = (visible_bullet_idx % 5) * bol_diameter_in  # Offset for bullet position
 
-            xPos = Inches(1 + (col_number - 1) * cell_width_in + col_offset)  # Position in inches
+            # Calculate the position on the slide in inches
+            xPos = Inches(1 + (col_number - 1) * cell_width_in + col_offset)
             yPos = Inches(1 + (row_number - 1) * cell_height_in + row_offset)
 
             # Add bullet for the project
@@ -70,7 +72,7 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_c
             text_frame = shape.text_frame
             text_frame.text = afkorting
             text_frame.paragraphs[0].font.name = "Arial"
-            text_frame.paragraphs[0].font.size = Pt(12)  # Font size in points
+            text_frame.paragraphs[0].font.size = Pt(12)
             text_frame.paragraphs[0].font.bold = True
             text_frame.paragraphs[0].font.italic = True
 
@@ -109,7 +111,8 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bol_d
                     elif header_text == "PROJECT / IDEA / TASK":
                         type_col = col_idx
 
-                if afkorting_col is not None and spf_col is not None and type_col is not None:
+                # Ensure that the table has valid rows to extract data
+                if afkorting_col is not None and spf_col is not None and type_col is not None and len(tbl.rows) > 1:
                     # Loop through each row to group projects by department (Afkorting)
                     for row in tbl.rows[1:]:
                         afkorting = row.cells[afkorting_col].text
@@ -127,7 +130,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bol_d
                             elif project_type == 'Task':
                                 department_tasks[department].append((afkorting, spf, project_title, project_type, slide.slide_id))
 
-    # Create slide with all projects, using different colors for each department
+    # Create slide with all projects
     new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title and content layout
     title_shape = new_slide.shapes.title
     title_shape.text = "All Projects by Department"
@@ -157,6 +160,7 @@ def add_and_run_macro(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bol_d
     prs.save(output_path)
 
     return output_path
+
 
 # Streamlit UI setup
 st.title("PowerPoint Macro Tool (Headless)")
