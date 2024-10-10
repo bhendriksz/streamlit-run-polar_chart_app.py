@@ -76,9 +76,9 @@ def add_bullets_to_slide_with_grouping(slide, projects, rows, cols, cell_width_c
             text_frame.paragraphs[0].font.bold = True
             text_frame.paragraphs[0].font.italic = True
 
-            # Add hyperlink to the original slide using the slide index
+            # Add hyperlink to the original slide using the actual slide index
             hyperlink = shape.click_action
-            target_slide = presentation.slides[source_slide_idx - 1]  # Use the source slide index to get the target slide
+            target_slide = presentation.slides[source_slide_idx]  # Use the actual slide index, no need for '-1'
             hyperlink.target_slide = target_slide
 
             # Add mouse-over screen tip
@@ -106,7 +106,7 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
         department_tasks = defaultdict(list)
 
         # Loop through all slides and shapes to find tables
-        for slide in prs.slides:
+        for slide_idx, slide in enumerate(prs.slides):
             for shape in slide.shapes:
                 if shape.has_table:
                     tbl = shape.table
@@ -137,13 +137,13 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
 
                             if len(afkorting) >= 2:
                                 department = afkorting[:2]  # First two letters define the department
-                                department_slides[department].append((afkorting, spf, project_title, project_type, slide.slide_id))
+                                department_slides[department].append((afkorting, spf, project_title, project_type, slide_idx))
 
                                 # Categorize into initiatives/ideas or tasks
                                 if project_type in ['Initiative', 'Idea']:
-                                    department_initiatives_ideas[department].append((afkorting, spf, project_title, project_type, slide.slide_id))
+                                    department_initiatives_ideas[department].append((afkorting, spf, project_title, project_type, slide_idx))
                                 elif project_type == 'Task':
-                                    department_tasks[department].append((afkorting, spf, project_title, project_type, slide.slide_id))
+                                    department_tasks[department].append((afkorting, spf, project_title, project_type, slide_idx))
 
         # Create slide with all projects, using different colors for each department
         new_slide = prs.slides.add_slide(prs.slide_layouts[5])  # Add a blank slide layout
