@@ -101,7 +101,7 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
                     type_col = None
 
                     # Identify the columns "AFKORTING", "SPF", "TITEL", and "PROJECT / IDEA / TASK"
-                    for col_idx, cell in enumerate(tbl.rows[0].cells):
+                    for col_idx, cell in enumerate(tbl.rows[0].cells):  # First row (header row)
                         header_text = cell.text.upper()
                         if header_text == "AFKORTING":
                             afkorting_col = col_idx
@@ -113,7 +113,8 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
                             type_col = col_idx
 
                     if afkorting_col is not None and spf_col is not None and type_col is not None:
-                        for row in tbl.rows[1:]:
+                        for row_idx in range(1, len(tbl.rows)):  # Skip the header row
+                            row = tbl.rows[row_idx]
                             afkorting = row.cells[afkorting_col].text
                             spf = row.cells[spf_col].text
                             project_title = row.cells[title_col].text if title_col is not None else ""
@@ -146,7 +147,6 @@ def process_presentation(ppt_path, rows, cols, cell_width_cm, cell_height_cm, bo
     except Exception as e:
         st.error(f"An error occurred: {e}")
         raise e
-
 
 # Streamlit UI setup
 st.title("PowerPoint Processing Tool")
